@@ -60,7 +60,7 @@ class User(UserMixin):
 
     def get_id(self):
         return str(self.emp_id)
-Talisman(app)
+#Talisman(app)
 
 @app.before_request
 def enforce_https():
