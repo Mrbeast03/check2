@@ -31,7 +31,7 @@ def allowed_file(filename):
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab")
 
 db_config = {
-    "DATABASE_URL ":"postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab",
+    "DATABASE_URL":"postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab",
 
     "host": "localhost",
     "database": "HRM",
