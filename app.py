@@ -1,54 +1,48 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file, current_app
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
 import psycopg2
 from werkzeug.utils import secure_filename
-import os 
+import os
 from datetime import datetime
-import logging
 import traceback
-from flask import send_from_directory
-from datetime import datetime, timedelta
-from datetime import date
-#from flask_talisman import Talisman
-
 
 app = Flask(__name__, static_folder='abc/static', template_folder='abc/templates')
 app.secret_key = 'mansi'  # For session management
-app.config["SESSION_PERMANENT"] = True 
+app.config["SESSION_PERMANENT"] = True
 
 login_manager = LoginManager()
-# login_manager.login_view = 'signin'
 login_manager.init_app(app)
 
-UPLOAD_FOLDER = "static/uploads"
+# Use /tmp/uploads for compatibility with Render
+UPLOAD_FOLDER = "/tmp/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
+
+
 def allowed_file(filename):
+    """Check if the file extension is allowed."""
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab",
+)
 
-db_config = {
-    "DATABASE_URL":"postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab",
 
-    "host": "localhost",
-    "database": "HRM",
-    "user": "postgres",
-    "password": "03130903",
-    "port": "5432",
-}
-
-# Function to create a database connection
+# Create a database connection
 def get_db_connection():
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn = psycopg2.connect(DATABASE_URL)
         return conn
     except Exception as e:
         print(f"Database connection error: {e}")
         traceback.print_exc()
         return None
+
 
 class User(UserMixin):
     def __init__(self, emp_id, first_name, last_name, email, photo=None):
@@ -60,32 +54,30 @@ class User(UserMixin):
 
     def get_id(self):
         return str(self.emp_id)
-#Talisman(app)
-
-@app.before_request
-def enforce_https():
-    if request.url.startswith("http://") and not app.debug:
-        url = request.url.replace("http://", "https://", 1)
-        return redirect(url, code=301)
 
 
 @login_manager.user_loader
 def load_user(emp_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT emp_id, first_name, last_name, email, photo FROM employee WHERE emp_id = %s", (emp_id,))
+    cursor.execute(
+        "SELECT emp_id, first_name, last_name, email, photo FROM employee WHERE emp_id = %s",
+        (emp_id,),
+    )
     user_data = cursor.fetchone()
     cursor.close()
     conn.close()
 
     if user_data:
         print(f"Loaded User: {user_data}")
-        return User(*user_data)  # Create and return a User instance
+        return User(*user_data)
     return None
+
 
 @app.route("/", methods=["GET"])
 def welcome():
     return render_template("welcome.html")
+
 
 @app.route("/signin", methods=["GET", "POST"])
 def signin():
@@ -100,29 +92,34 @@ def signin():
         try:
             conn = get_db_connection()
             if not conn:
-                return jsonify({"success": False, "message": "Unable to connect to the database."}), 500
+                return jsonify(
+                    {"success": False, "message": "Unable to connect to the database."}
+                ), 500
 
             cursor = conn.cursor()
-            cursor.execute("SELECT emp_id, first_name, last_name, email, photo FROM employee WHERE email = %s AND password = %s", (email, password))
+            cursor.execute(
+                "SELECT emp_id, first_name, last_name, email, photo FROM employee WHERE email = %s AND password = %s",
+                (email, password),
+            )
             user = cursor.fetchone()
-           
 
             if user:
-                emp_id = user[0] 
-                session["email"] = email  # Store email in session
-                session["emp_id"] = user[0]  # Store emp_id in session
-                user_obj = User(*user)  # Create User object
-                login_user(user_obj)  # Log in user using Flask-Login
-                # Capture current time in 12-hour format
-                checkin_time = datetime.now().strftime("%I:%M %p")  
-                
-                # Insert check-in time into logs table
-                cursor.execute("""
+                emp_id = user[0]
+                session["email"] = email
+                session["emp_id"] = emp_id
+                user_obj = User(*user)
+                login_user(user_obj)
+
+                checkin_time = datetime.now().strftime("%I:%M %p")
+                cursor.execute(
+                    """
                     INSERT INTO logs (emp_id, date, checkin) 
                     VALUES (%s, CURRENT_DATE, %s) 
                     ON CONFLICT (emp_id, date)
                     DO UPDATE SET checkin = EXCLUDED.checkin;
-                """, (emp_id, checkin_time))
+                    """,
+                    (emp_id, checkin_time),
+                )
 
                 conn.commit()
                 cursor.close()
@@ -134,34 +131,52 @@ def signin():
                 return jsonify({"success": False, "message": "Invalid credentials!"}), 401
         except Exception as e:
             return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
-    
+
     return render_template("signin.html")
+
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        first_name = request.form.get("first_name")
-        last_name = request.form.get("last_name")
-        email = request.form.get("email")
-        phone = request.form.get("phone")
-        password = request.form.get("password")
-        confirm_password = request.form.get("confirm_password")
-        date_of_birth = request.form.get("date_of_birth")
-        address = request.form.get("address")
-        photo = request.files.get("photo")
-        resume = request.files.get("resume_path")
-
-        if not all([first_name.strip(), last_name.strip(), email.strip(), phone.strip(), password.strip(), confirm_password.strip(), date_of_birth.strip(), address.strip()]) or not (photo and resume and photo.filename.strip() and resume.filename.strip()):
-            return jsonify({"success": False, "message": "Please fill in all required fields."}), 400
-
-        if password != confirm_password:
-            return jsonify({"success": False, "message": "Passwords do not match!"}), 400
-
         try:
-            photo_filename = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(photo.filename))
-            resume_filename = os.path.join(app.config["UPLOAD_FOLDER"], secure_filename(resume.filename))
+            first_name = request.form.get("first_name")
+            last_name = request.form.get("last_name")
+            email = request.form.get("email")
+            phone = request.form.get("phone")
+            password = request.form.get("password")
+            confirm_password = request.form.get("confirm_password")
+            date_of_birth = request.form.get("date_of_birth")
+            address = request.form.get("address")
+            photo = request.files.get("photo")
+            resume = request.files.get("resume_path")
 
-            # Save the files
+            if not all(
+                [
+                    first_name.strip(),
+                    last_name.strip(),
+                    email.strip(),
+                    phone.strip(),
+                    password.strip(),
+                    confirm_password.strip(),
+                    date_of_birth.strip(),
+                    address.strip(),
+                ]
+            ) or not (
+                photo and resume and photo.filename.strip() and resume.filename.strip()
+            ):
+                return jsonify({"success": False, "message": "Please fill in all required fields."}), 400
+
+            if password != confirm_password:
+                return jsonify({"success": False, "message": "Passwords do not match!"}), 400
+
+            photo_filename = os.path.join(
+                app.config["UPLOAD_FOLDER"], secure_filename(photo.filename)
+            )
+            resume_filename = os.path.join(
+                app.config["UPLOAD_FOLDER"], secure_filename(resume.filename)
+            )
+
+            # Save files in /tmp/uploads
             photo.save(photo_filename)
             resume.save(resume_filename)
 
@@ -172,30 +187,36 @@ def register():
                 INSERT INTO employee (first_name, last_name, email, phone, password, date_of_birth, address, photo, resume_path)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (first_name, last_name, email, phone, password, date_of_birth, address, photo_filename, resume_filename),
+                (
+                    first_name,
+                    last_name,
+                    email,
+                    phone,
+                    password,
+                    date_of_birth,
+                    address,
+                    photo_filename,
+                    resume_filename,
+                ),
             )
             conn.commit()
             cursor.close()
             conn.close()
 
             return jsonify({"success": True, "message": "Registration successful!"}), 200
+        except psycopg2.IntegrityError:
+            return jsonify({"success": False, "message": "Email already exists!"}), 400
         except Exception as e:
-            return jsonify({"success": False, "message": "Internal Server Error. Please try again!"}), 500
+            traceback.print_exc()
+            return jsonify({"success": False, "message": f"Internal Server Error: {str(e)}"}), 500
 
     return render_template("register.html")
 
-def get_user_profile(emp_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT photo FROM employee WHERE emp_id = %s", (emp_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return result[0] if result else None
 
-@app.route('/profile_picture/<int:user_id>')
+@app.route("/profile_picture/<int:user_id>")
 @login_required
 def get_profile_picture(user_id):
+    """Fetch and return profile picture."""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("SELECT photo FROM employee WHERE emp_id = %s", (user_id,))
@@ -204,12 +225,14 @@ def get_profile_picture(user_id):
     conn.close()
 
     if result and result[0]:
-        return send_file(result[0], mimetype='image/jpeg')  # If image is stored as path
+        return send_file(result[0], mimetype="image/jpeg")
     else:
-        return send_file('static/default_profile.png', mimetype='image/png')  # Default image
+        return send_file("static/default_profile.png", mimetype="image/png")
+
 
 @app.after_request
 def prevent_cache(response):
+    """Prevent caching for all responses."""
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
