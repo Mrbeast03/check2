@@ -5,11 +5,11 @@ from werkzeug.utils import secure_filename
 import os 
 from datetime import datetime
 import logging
-# import traceback
+import traceback
 from flask import send_from_directory
 from datetime import datetime, timedelta
 from datetime import date
-from flask_talisman import Talisman
+#from flask_talisman import Talisman
 
 
 app = Flask(__name__, static_folder='abc/static', template_folder='abc/templates')
@@ -43,17 +43,11 @@ db_config = {
 # Function to create a database connection
 def get_db_connection():
     try:
-        conn = psycopg2.connect(
-            DATABASE_URL=db_config["DATABASE_URL "],
-            host=db_config["host"],
-            database=db_config["database"],
-            user=db_config["user"],
-            password=db_config["password"],
-            port=db_config["port"],
-        )
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
         return conn
     except Exception as e:
         print(f"Database connection error: {e}")
+        traceback.print_exc()
         return None
 
 class User(UserMixin):
