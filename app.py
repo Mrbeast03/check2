@@ -28,7 +28,11 @@ ALLOWED_EXTENSIONS = {"pdf", "jpg", "jpeg", "png", "doc", "docx"}
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 # Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab")
+
 db_config = {
+    "DATABASE_URL ":"postgresql://hrms_b2ab_user:QF6t5ylfDUzxMek9V3bn8IBjJBqD9duo@dpg-cvdpliin91rc73ba7s40-a/hrms_b2ab",
+
     "host": "localhost",
     "database": "HRM",
     "user": "postgres",
@@ -40,6 +44,7 @@ db_config = {
 def get_db_connection():
     try:
         conn = psycopg2.connect(
+            DATABASE_URL=db_config["DATABASE_URL "],
             host=db_config["host"],
             database=db_config["database"],
             user=db_config["user"],
