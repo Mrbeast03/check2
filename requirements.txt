@@ -1,6 +1,4 @@
 Flask
 psycopg2
 werkzeug
-pywin32==306
-protobuf>=3.20.2,<5.26.1
-grpcio-status>=1.54.0
+ 
