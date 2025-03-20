@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("photo").addEventListener("change", function () {
         const fileName = this.files[0] ? this.files[0].name : "";
@@ -13,7 +12,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelector(".create-account-btn").addEventListener("click", function (event) {
         event.preventDefault();
 
-        // Collect input data
         const firstName = document.getElementById("first-name").value.trim();
         const lastName = document.getElementById("last-name").value.trim();
         const email = document.getElementById("email").value.trim();
@@ -25,18 +23,6 @@ document.addEventListener("DOMContentLoaded", function () {
         const photo = document.getElementById("photo").files[0];
         const resume_path = document.getElementById("resume_path").files[0];
 
-        console.log("First Name:", firstName);
-        console.log("Last Name:", lastName);
-        console.log("Email:", email);
-        console.log("Phone:", phone);
-        console.log("Password:", password);
-        console.log("Confirm Password:", confirmPassword);
-        console.log("DOB:", date_of_birth);
-        console.log("Address:", address);
-        console.log("Photo:", photo ? photo.name : "No file selected");
-        console.log("Resume:", resume_path ? resume_path.name : "No file selected");
-
-        // Basic validation
         if (!firstName || !lastName || !email || !phone || !password || !confirmPassword || !date_of_birth || !address || !photo || !resume_path) {
             alert("Please fill in all required fields.");
             return;
@@ -47,7 +33,6 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Prepare FormData
         const formData = new FormData();
         formData.append("first_name", firstName);
         formData.append("last_name", lastName);
@@ -60,12 +45,18 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append("photo", photo);
         formData.append("resume_path", resume_path);
 
-        // Send data to backend
         fetch('https://wqwqw.onrender.com/register', {
             method: 'POST',
-            body: formData // No need to stringify, and no 'Content-Type' header
+            body: formData,
         })
-        .then(response => response.json()) // Parse response
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Internal Server Error');
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             console.log(data);
             if (data.success) {
@@ -77,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function () {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred during registration.');
+            alert(`An error occurred: ${error.message}`);
         });
     });
 });
