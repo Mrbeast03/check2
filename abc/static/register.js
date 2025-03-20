@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", function () {
         formData.append("resume_path", resume_path);
 
         // Send data to backend
-        fetch('/register', {
+        fetch('https://wqwqw.onrender.com/register', {
             method: 'POST',
             body: formData // No need to stringify, and no 'Content-Type' header
         })
